@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>臺大積淹水地圖v1.0</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        #title {
+            position: absolute;
+            top: 10px;
+            left: 50px;
+            z-index: 1000;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        #infoButton {
+            margin-left: 10px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            background-color: #f0f0f0;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        #mapDescription {
+            position: absolute;
+            top: 80px;
+            left: 80px;
+            z-index: 1000;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            display: none; /* 預設隱藏說明框 */
+            width: 250px;
+        }
+        #menu {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        select {
+            font-size: 1rem;
+            padding: 2px 5px;
+        }
+        .popup-image {
+            max-width: 300px;
+            max-height: 200px;
+            width: auto;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顯示地圖標題與說明鈕 -->
+    <div id="title">臺大積淹水地圖v1.0
+        <button id="infoButton">說明</button> <!-- 說明鈕 -->
+    </div>
+
+    <!-- 顯示地圖說明的區域 -->
+    <div id="mapDescription">
+        <strong>基本資訊地圖:</strong> 包含時間、地點、敘述與照片<br>
+        <strong>點密度圖:</strong> 只有點資料<br>
+        <button onclick="closeDescription()">關閉</button> <!-- 關閉說明框 -->
+    </div>
+
+    <!-- 地圖模式選單 -->
+    <div id="menu">
+        <label for="mapType">選擇地圖模式：</label>
+        <select id="mapType">
+            <option value="infoMap">基本資訊地圖</option>
+            <option value="densityMap">點密度圖</option>
+        </select>
+    </div>
+
+    <!-- 地圖容器 -->
+    <div id="map"></div>
+
+    <script>
+        // 讀取 output.json 檔案
+        fetch('output.json')
+            .then(response => response.json()) // 解析 JSON 資料
+            .then(data => {
+                // 轉換為 GeoJSON 格式
+                const geojsonData = {
+                    "type": "FeatureCollection",
+                    "features": data.map(item => ({
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [item.lng, item.lat]  // GeoJSON 使用 [longitude, latitude]
+                        },
+                        "properties": {
+                            "編號": item.編號,
+                            "積淹水發生日期": item.積淹水發生日期,
+                            "積淹水發生時間": item.積淹水發生時間,
+                            "積淹水發生地點": item.積淹水發生地點,
+                            "相片編號": item.相片編號,
+                            "積淹水情形敘述": item.積淹水情形敘述
+                        }
+                    }))
+                };
+
+                // 建立地圖與基本圖層，設置更大的預設縮放層級
+                var map = L.map('map').setView([25.018373, 121.537994], 16); // 預設放大層級改為14
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap 貢獻者',
+                }).addTo(map);
+
+                // 定義基本資訊地圖
+                var infoLayer = L.geoJSON(geojsonData, {
+                    onEachFeature: function (feature, layer) {
+                        var popupContent = `
+                            <strong>積淹水發生日期：</strong>${feature.properties.積淹水發生日期}<br>
+                            <strong>積淹水發生時間：</strong>${feature.properties.積淹水發生時間}<br>
+                            <strong>積淹水發生地點：</strong>${feature.properties.積淹水發生地點}<br>
+                            <strong>積淹水情形敘述：</strong>${feature.properties.積淹水情形敘述 || '無敘述'}<br>
+                            <strong>相片：</strong><br>
+                            <img class="popup-image" src="photo/${feature.properties.相片編號}" alt="照片">
+                        `;
+                        layer.bindPopup(popupContent, {
+                            maxWidth: 400,
+                            autoPan: true
+                        });
+                    }
+                });
+
+                // 定義點密度圖
+                var densityLayer = L.geoJSON(geojsonData, {
+                    pointToLayer: function (feature, latlng) {
+                        return L.circleMarker(latlng, {
+                            radius: 4, // 小紅點大小
+                            fillColor: "red",
+                            color: "red",
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        });
+                    }
+                });
+
+                // 初始顯示基本資訊地圖
+                infoLayer.addTo(map);
+
+                // 下拉選單切換地圖模式
+                document.getElementById('mapType').addEventListener('change', function (e) {
+                    var mapType = e.target.value;
+
+                    // 清除所有圖層
+                    map.eachLayer(function (layer) {
+                        if (layer != map._layersMinZoom) {
+                            map.removeLayer(layer);
+                        }
+                    });
+
+                    // 加入底圖
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap 貢獻者',
+                    }).addTo(map);
+
+                    // 根據選擇顯示對應圖層
+                    if (mapType === 'infoMap') {
+                        infoLayer.addTo(map);
+                    } else if (mapType === 'densityMap') {
+                        densityLayer.addTo(map);
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('讀取 JSON 失敗:', error);
+            });
+
+        // 當點擊說明鈕時顯示/隱藏說明框
+        document.getElementById('infoButton').addEventListener('click', function() {
+            var description = document.getElementById('mapDescription');
+            description.style.display = (description.style.display === 'none' || description.style.display === '') ? 'block' : 'none';
+        });
+
+        // 關閉說明框
+        function closeDescription() {
+            document.getElementById('mapDescription').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
