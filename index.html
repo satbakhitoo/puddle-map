@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>臺大積淹水地圖v1.0</title>
+    <title>臺大積淹水地圖v1.1</title>
+    <!-- 引入 Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 引入 Leaflet 地圖 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -13,88 +16,64 @@
             padding: 0;
         }
         #map {
-            height: 100%;
+            height: calc(100% - 110px); /* 保留上方標題與選單高度 */
             width: 100%;
         }
-        #title {
-            position: absolute;
-            top: 10px;
-            left: 50px;
-            z-index: 1000;
-            background: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-        }
-        #infoButton {
-            margin-left: 10px;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 5px 10px;
-            border-radius: 5px;
-            background-color: #f0f0f0;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-        }
         #mapDescription {
-            position: absolute;
-            top: 80px;
-            left: 80px;
-            z-index: 1000;
-            background: white;
-            padding: 15px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
             display: none; /* 預設隱藏說明框 */
-            width: 250px;
-        }
-        #menu {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-            background: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-        }
-        select {
-            font-size: 1rem;
-            padding: 2px 5px;
         }
         .popup-image {
             max-width: 300px;
-            max-height: 200px;
+            max-height: 250px;
             width: auto;
             height: auto;
         }
+        
     </style>
 </head>
 <body>
-    <!-- 顯示地圖標題與說明鈕 -->
-    <div id="title">臺大積淹水地圖v1.0
-        <button id="infoButton">說明</button> <!-- 說明鈕 -->
+    <!-- Bootstrap 容器 -->
+    <div class="container-fluid h-100">
+        <!-- 標題與說明按鈕 -->
+        <div class="row bg-white shadow-sm py-2">
+            <div class="col-12 col-md-6 text-center text-md-start">
+                <h1 class="fs-4 fw-bold m-0">臺大積淹水地圖v1.1</h1>
+            </div>
+            <div class="col-12 col-md-6 text-center text-md-end">
+                <button id="infoButton" class="btn btn-primary btn-sm">說明</button>
+            </div>
+        </div>
+
+        <!-- 選單與地圖說明 -->
+        <div class="row mt-2">
+            <!-- 地圖模式選單 -->
+            <div id="menu" class="col-12 col-md-4 mb-2">
+                <label for="mapType" class="form-label">選擇地圖模式：</label>
+                <select id="mapType" class="form-select">
+                    <option value="infoMap">基本資訊地圖</option>
+                    <option value="densityMap">點密度圖</option>
+                </select>
+            </div>
+            <!-- 地圖說明 -->
+            <div id="mapDescription" class="col-12 col-md-4 mb-2 bg-light p-3 rounded shadow-sm">
+                <p>這是一份臺大積水地圖，也是一份水坑圖鑑，希望大家雨天都不要遇到這些水坑怪，成功邁向乾腳自由。</p>
+                <strong>基本資訊地圖:</strong> 呈現淹水事件資訊，包含時間、地點、敘述與照片<br>
+                <strong>點密度圖:</strong> 只有點資料<br><br>
+                <p><i>Made by 聯合國永續目標與校園實作-積水地圖製作團隊。December 2024。</i></p><br>
+                <!-- 將按鈕放到右下角 -->
+                <div class="d-flex justify-content-end">
+                    <button onclick="closeDescription()" class="btn btn-secondary btn-sm">關閉</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 地圖容器 -->
+        <div id="map" class="mt-2"></div>
     </div>
 
-    <!-- 顯示地圖說明的區域 -->
-    <div id="mapDescription">
-        <strong>基本資訊地圖:</strong> 包含時間、地點、敘述與照片<br>
-        <strong>點密度圖:</strong> 只有點資料<br>
-        <button onclick="closeDescription()">關閉</button> <!-- 關閉說明框 -->
-    </div>
 
-    <!-- 地圖模式選單 -->
-    <div id="menu">
-        <label for="mapType">選擇地圖模式：</label>
-        <select id="mapType">
-            <option value="infoMap">基本資訊地圖</option>
-            <option value="densityMap">點密度圖</option>
-        </select>
-    </div>
-
-    <!-- 地圖容器 -->
-    <div id="map"></div>
+    <!-- 引入 Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
         // 讀取 output.json 檔案
@@ -136,11 +115,33 @@
                             <strong>積淹水發生地點：</strong>${feature.properties.積淹水發生地點}<br>
                             <strong>積淹水情形敘述：</strong>${feature.properties.積淹水情形敘述 || '無敘述'}<br>
                             <strong>相片：</strong><br>
-                            <img class="popup-image" src="photo/${feature.properties.相片編號}" alt="照片">
+                            <img class="popup-image" src="photo/${feature.properties.相片編號}" 
+                                style="max-width: 100%; height: auto;" 
+                                onload="this.closest('.leaflet-popup-content').style.overflow = 'hidden';">
                         `;
                         layer.bindPopup(popupContent, {
                             maxWidth: 400,
                             autoPan: true
+                        });
+
+                        // 修正第一次點擊 autoPan 問題
+                        layer.on('popupopen', function (e) {
+                            map.panTo(e.popup._latlng); // 強制將地圖中心點調整至彈出視窗
+
+                            // 取得彈出視窗中的圖片
+                            const img = e.popup._contentNode.querySelector('img');
+
+                            if (img) {
+                                if (img.complete) {
+                                // 圖片已經加載完成，重新調整 Popup 大小
+                                    e.popup.update();
+                            } else {
+                                // 監聽圖片的 onload 事件，圖片加載後重新調整大小
+                                img.onload = () => {
+                                    e.popup.update();
+                                    };
+                                }
+                            }
                         });
                     }
                 });
@@ -190,10 +191,10 @@
                 console.error('讀取 JSON 失敗:', error);
             });
 
-        // 當點擊說明鈕時顯示/隱藏說明框
-        document.getElementById('infoButton').addEventListener('click', function() {
-            var description = document.getElementById('mapDescription');
-            description.style.display = (description.style.display === 'none' || description.style.display === '') ? 'block' : 'none';
+        // 點擊「說明」按鈕，切換顯示/隱藏說明框
+        document.getElementById('infoButton').addEventListener('click', function () {
+            document.getElementById('mapDescription').style.display = 
+                document.getElementById('mapDescription').style.display === 'block' ? 'none' : 'block';
         });
 
         // 關閉說明框
@@ -203,3 +204,4 @@
     </script>
 </body>
 </html>
+
